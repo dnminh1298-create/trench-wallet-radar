@@ -32,7 +32,7 @@ from core.report import build as build_report
 from core.store import Store
 
 from . import backtest as backtest_mod
-from . import chains, config, profile, runs, scan, tokens, xray
+from . import chains, config, profile, runs, scan, tokens, xray, ohlcv
 from .follow import FollowEngine
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     await app.state.client.close()
 
 
-app = FastAPI(title="Smart Money Radar", lifespan=lifespan)
+app = FastAPI(title="Trench Wallet Radar", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(WEB)), name="static")
 app.mount("/core-web", StaticFiles(directory=str(ROOT / "core" / "web")), name="core-web")
 app.mount("/brand", StaticFiles(directory=str(ROOT / "core" / "brand")), name="brand")
@@ -198,6 +198,8 @@ def api_stats():
 
 @app.get("/api/chains")
 async def api_chains():
+    if not config.core_config.API_KEY:
+        return chains.order_chains([{"id": k, "name": v, "image": None} for k, v in config.core_config.CHAINS.items()])
     return await chains.catalog(app.state.client)
 
 
@@ -424,6 +426,14 @@ async def api_wallet_profile(address: str, chain: str = "auto", budget: float = 
 
 
 # ---------- Token X-ray ----------
+
+
+@app.get("/api/xray/ohlcv")
+async def api_xray_ohlcv(chain: str, token: str, pool: str | None = None, interval: str = "1h"):
+    chain, token = _chain(chain), _addr(token)
+    if pool:
+        pool = _addr(pool)
+    return await ohlcv.chart_data(app.state.client, chain, token, pool, interval)
 
 
 @app.get("/api/xray/token")

@@ -3,112 +3,125 @@
   <img src="core/brand/coingecko-api-on-light.svg" alt="Data powered by CoinGecko API" height="32">
 </picture>
 
-# Smart Money Radar
+# Trench Wallet Radar
 
-Scan today's hottest tokens, find the wallets trading them, score every wallet on real PnL and
-copyability, then paper copy-trade the best ones -- on autopilot if you want. It's the CoinGecko
-API wallet endpoints doing what a screener can't: your own rules, running on real trade history,
-24/7.
+A creator-owned wallet research terminal built using CoinGecko API data.
+**Profitable doesn't always mean followable.**
 
-![Demo](docs/demo.gif)
+Adapted from [CoinGecko's Smart Money Radar starter](https://github.com/cg-brianlsh/smart-money-radar), with custom terminal UI, workflow, filtering, scoring, wallet analysis, token navigation, Recent Rotation, Wallet Consensus, and Token X-Ray integration. This is an independent project, **not an official CoinGecko product**.
 
-## Get your API key
+## Research workflow
 
-Grab a free key at [coingecko.com/en/api](https://www.coingecko.com/en/api?utm_source=github&utm_content=smart-money-radar). The
-Scan and Wallets tabs need an **Analyst** plan or higher (that's where `top_traders`, `top_holders`
-and the wallet endpoints live); trending/new pools work on the free Demo plan, and the app shows a
-locked card instead of hanging when a feature isn't on your plan.
+1. Scan active/trending tokens across a selected network.
+2. Find top traders and wallets observed in recent token trades.
+3. Profile wallet PnL and trade behavior.
+4. Compare creator-defined Trench Score and Copyability separately.
+5. Analyze cross-token wallet overlap and the filtered shortlist.
+6. Inspect Recent Rotation in a wallet's Trader Dossier.
+7. Review Wallet Consensus across shortlisted wallets.
+8. Open tokens in Token X-Ray for deeper market inspection.
 
-## What you need
+Defaults: BNB Chain (`bsc`), Trending (1h), 5 tokens, up to 20 selected wallets, a $1,000 research budget, and a five-wallet shortlist.
 
-- Python 3.12 and [`uv`](https://docs.astral.sh/uv/)
-- A CoinGecko API key ([get one](https://www.coingecko.com/en/api?utm_source=github&utm_content=smart-money-radar))
-- An AI coding agent (Claude Code or Codex) if you want to reskin or extend this
+## Features
 
-## Important data and chain notes
+- **Specific Target:** search tokens, pools, tickers, contracts, or wallets; queue tokens for a targeted scan. Clearing the input clears only search results and queued targets.
+- **Broader market Radar:** select network, source, token count, and budget, then Run Radar. The persistent network quick selector stays synchronized with the network filter.
+- **Radar Candidates:** compare realized PnL, trade sample, recent activity, and cross-token overlap. Click a card to profile it; checkboxes select independently; token logos open Token X-Ray.
+- **Wallet Analysis / Trader Dossier:** inspect separate Trench Score and Copyability metrics, PnL, holdings, trade history, wallet labels, and Recent Rotation.
+- **Shortlist:** up to five eligible wallets in current filter/Trench Score order, with overlap as a tie-breaker. This is not an investment ranking.
+- **Wallet Consensus:** summarize tokens touched by multiple shortlisted wallets and their latest observed buy/sell direction.
+- **Token X-Ray:** token identity, market/pool context, risk fields, and interactive USD OHLCV candles with volume. Supports 1m, 5m, 15m, 1h, 4h, and 1D.
+- **Wallet → token navigation:** Recent Rotation symbols or contracts use the row's network and exact contract through the same Token X-Ray flow as Radar. The dossier stays open in its original tab.
 
-### CoinGecko data vs. repo-derived outputs
+Clicking the product name performs a full page reload. The primary interface has no live trading, signing, authentication, or messaging integration. The starter's optional paper-follow, backtest, report, and autopilot code remains for compatibility, outside the primary navigation.
 
-CoinGecko API supplies the underlying market, token, pool, trade and wallet data used by this
-project. Wallet labels, skill and copyability scores, bot-like classifications, shortlists,
-signals, paper-trading decisions and reports are computed by this repository. They are editable
-examples, not CoinGecko API fields, official CoinGecko classifications, financial advice or
-validated trading signals. Inspect the supporting data and adapt the formulas before relying on
-them in your own workflow.
+## Data and creator-defined logic
 
-### Recommended chains for end-to-end testing
+**CoinGecko API supplies market data, pool data, wallet trades, wallet PnL, and token/pool context.** This repository computes **Trench Score, Copyability, wallet labels, shortlist logic, rotation summaries, and Wallet Consensus**. These computed signals are **not official CoinGecko metrics**.
 
-For demos that combine discovery with the complete wallet workflow, start with **Ethereum, Base,
-BNB Chain, Robinhood Chain or Arc Chain**. Solana still offers useful market, token, pool and trade
-data together with wallet P&L and wallet-trade history, while its wallet balance and transfer
-coverage is currently more limited. Use one of the recommended chains when your build depends on
-those additional wallet views.
+Trench Score is a rounded 0–100 heuristic: 40% win rate, 25% positive realized PnL (full contribution at $50,000), 20% sample size (full contribution at 20 observations), and 15% consistency (`1 - profit concentration`). Missing concentration receives a neutral component. Empty completed samples score zero; unreliable PnL is not rewarded.
 
-This note is implementation context for you and your coding agent; chain-coverage gaps do not need
-to become the topic of creator-facing content.
+Copyability remains separate: 70% trade-size affordability and 30% activity frequency for the selected budget. It does not guarantee practical execution. Changing budget clears profiles so they can be recalculated from existing data.
 
-## Quickstart
+The `proven trader` label requires positive realized PnL, at least eight completed sold-token observations, win rate ≥55%, and known profit concentration <75%. Infrastructure and bot-like profiles are excluded from the shortlist. Labels and scores describe observed samples, not future performance.
 
-```
-make install
-cp env.example .env   # then paste your key into .env
-make run               # http://localhost:8000
-```
+### Sample limits
 
-## Make it yours with your AI agent
+- Wallet PnL may cover multiple EVM networks; fetched trade history is network-specific. Completed observations prefer sold tokens, with matched lots as the labeled fallback.
+- Recent Rotation and Consensus use the last 24 hours within up to 200 fetched trades per wallet. Full-day coverage is not guaranteed; cached profiles may be up to 30 minutes old.
+- Consensus keeps networks separate and counts each wallet's latest action per token. Missing or conflicting direction suppresses the buy percentage. Empty overlap is shown honestly.
+- Token X-Ray reuses the existing selected/highest-liquidity pool. It displays up to 200 real candles; no-swap intervals are not filled. Chart times are UTC, refresh is manual, and the latest candle may be incomplete. Pool close and headline token price can differ. MCAP candles are omitted without reliable circulating supply.
 
-Paste any of these into Claude Code or Codex, from inside this repo:
+Research tooling, not financial advice. Overlap, profitability, and labels are not buy signals or guarantees.
 
-1. "Change the Scan tab's default source from trending_1h to new_pools, and change the default budget to $250."
-2. "Restyle this to a purple/black theme. Keep the CoinGecko badge and the links block intact."
-3. "Add a filter to the Wallets tab for wallets seen in 3+ tokens this scan."
-4. "Make Base the default chain and explain how `WALLET_CHAIN_CAPS` handles endpoint differences."
-5. "Change the copyability formula in `app/scoring.py` to weight trade frequency more heavily."
-6. "Add a Telegram or Discord webhook that posts every autopilot decision."
+## Local setup
 
-See `AGENTS.md` for the full repo map and customization recipes.
+Requires **Python 3.12+** and a CoinGecko **Analyst plan or higher** for wallet/top-trader features. Run these commands from the cloned repository root. No frontend build step is required.
 
-## How it works
+PowerShell:
 
-```
-Discovery                Real-time-ish              Your logic              Execution
-trending/new pools   →   poll followed wallets   →   scoring + rules   →   paper trades
-top_traders/holders      every N seconds             (app/scoring.py,        (core/paper.py)
-wallet pnl/trades                                     app/backtest.py)
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item env.example .env
 ```
 
-| Layer | Endpoints used |
-|---|---|
-| Discovery | trending pools, new pools, megafilter, `top_traders`, `top_holders` |
-| Wallet profiling | `wallets/{address}/pnl`, `networks/{network}/wallets/{address}/trades`, `wallets/{address}/balances` |
-| Decision logic | your rules in `app/scoring.py` + `app/backtest.py` |
-| Execution | paper trading only (`core/paper.py`) |
+macOS/Linux:
 
-### The four modes
-
-```
-make backtest SOURCE=trending_1h CHAIN=base     # walk-forward: select on the first 60%, replay the last 40%
-make forward MINUTES=3                          # live on paper, logs every decision
-make autopilot                                  # rescans + re-scores + trades on paper, forever
-make report RUN=latest                          # report.html + report-card.png for any run
-make article-kit RUN=latest HANDLE=you           # article-kit/ ready for an X Article
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
+cp env.example .env
 ```
 
-## What you can do on each plan
+Put your own key in the local `.env` file:
 
-| Feature | Demo (free) | Analyst+ |
-|---|---|---|
-| Trending / new pools | ✅ | ✅ |
-| Safe-movers megafilter | 🔒 [upgrade](https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=smart-money-radar) | ✅ |
-| `top_traders` / `top_holders` (Scan) | 🔒 [upgrade](https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=smart-money-radar) | ✅ |
-| Wallet PnL / trades / balances (Wallets, Follow) | 🔒 [upgrade](https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=smart-money-radar) | ✅ |
+```dotenv
+COINGECKO_API_KEY=your_key_here
+COINGECKO_ENVIRONMENT=pro
+```
 
-Demo software. Paper trading only. CoinGecko API provides market data; it doesn't execute trades or
-give financial advice.
+`.env` must never be committed. Do not overwrite an existing `.env` when updating a checkout. The server keeps the key out of the frontend and uses `https://pro-api.coingecko.com` with the Pro API header. Without a key, the app shows setup/plan notices instead of fabricated live results.
+
+Start on Windows:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.server:app --host 127.0.0.1 --port 8000
+```
+
+On macOS/Linux, use `.venv/bin/python` in the same command. Open [localhost:8000](http://localhost:8000/). Restart the server after changing `.env`. Local runtime outputs and caches are ignored by Git.
+
+## Tests
+
+Python tests (offline):
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
+
+Frontend regression tests require Node.js; no npm installation is needed:
+
+```sh
+node tests/test_ui.cjs
+node tests/test_candidates.cjs
+node tests/test_consensus.cjs
+node tests/test_chart.cjs
+node tests/test_rotation_navigation.cjs
+node tests/test_search_reset.cjs
+```
+
+Tests cover scoring, labels, scan deduplication, plan locks, rotation/consensus, OHLCV normalization, navigation, search reset, and legacy paper workflows. Live validation requires your own API key and consumes API credits.
+
+## CoinGecko API
 
 <!-- coingecko-links:start -->
-- CoinGecko API: https://www.coingecko.com/en/api?utm_source=github&utm_content=smart-money-radar
-- Pricing: https://www.coingecko.com/en/api/pricing?utm_source=github&utm_content=smart-money-radar
-- Docs: https://docs.coingecko.com?utm_source=github&utm_content=smart-money-radar
-- Agent Skill + MCP: https://docs.coingecko.com/ai-integration?utm_source=github&utm_content=smart-money-radar
+- [CoinGecko API](https://www.coingecko.com/en/api)
+- [CoinGecko API Pricing](https://www.coingecko.com/en/api/pricing)
+- [CoinGecko API Documentation](https://docs.coingecko.com/)
+- [CoinGecko Agent Skill and MCP](https://docs.coingecko.com/ai-integration)
 <!-- coingecko-links:end -->
+
+## Chart attribution
+
+[TradingView Lightweight Charts 5.0.9](https://tradingview.github.io/lightweight-charts/) is served locally. Its Apache-2.0 license and required notice are included in `web/vendor`. Candle data comes from the [CoinGecko pool OHLCV endpoint](https://docs.coingecko.com/reference/pool-ohlcv-contract-address).

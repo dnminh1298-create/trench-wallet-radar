@@ -290,10 +290,10 @@ def label_wallet(metrics: dict, pnl: dict, activity: dict, address: str | None =
     if (activity.get("recent_trades_per_day") or 0) > 50:
         return "bot_like"
     days_idle = activity.get("days_since_last_trade")
+    if proven_trader(metrics, pnl):
+        return "proven_trader"
     if metrics["trades"] == 0:
         return "dormant" if (days_idle or 0) > 14 else "one_hit"
-    if metrics["trades"] >= 5 and (metrics["win_rate"] or 0) >= 0.6 and metrics["realized_pnl_usd"] > 0:
-        return "proven_trader"
     if metrics["trades"] == 1:
         return "one_hit"
     if days_idle and days_idle > 14:
@@ -322,18 +322,43 @@ def is_copyable(copy_score: int | None, threshold: int = 60) -> bool:
 
 
 def skill_score(match_metrics: dict, pnl_features: dict) -> int:
-    """0-100: win rate (50%), lifetime realized PnL capped at $50k (30%), sample size capped at 20 trades (20%).
+    """Creator-defined Trench Score; legacy name retained for existing consumers."""
+    evidence = score_evidence(match_metrics, pnl_features)
+    if not evidence["sample_size"]:
+        return 0
+    concentration = pnl_features.get("profit_concentration")
+    consistency = 0.5 if concentration is None else 1 - min(1, max(0, concentration))
+    return round(min(100, max(0,
+        (evidence["win_rate"] or 0) * 40
+        + min(max(evidence["realized_pnl_usd"] or 0, 0), 50_000) / 50_000 * 25
+        + min(evidence["sample_size"], 20) / 20 * 20
+        + consistency * 15)))
 
-    Win rate and sample come from the wallet's own FIFO-matched trades when it has any, and fall back to
-    the lifetime per-token win rate from the PnL endpoint when the recent trade window has no round trips.
+
+def score_evidence(metrics: dict, pnl: dict) -> dict:
+    """Prefer the broader sold-token sample; otherwise use recent FIFO matches.
+
+    FIFO matches are lot observations, not necessarily distinct completed trades.
+    Keep the win rate and sample denominator from the same source.
     """
-    trades = match_metrics.get("trades") or 0
-    win_rate = match_metrics.get("win_rate") if trades else pnl_features.get("win_rate_tokens")
-    sample = max(trades, pnl_features.get("tokens_sold") or 0)
-    lifetime_pnl = max(pnl_features.get("lifetime_realized_pnl_usd") or 0, 0)
-    pnl_component = min(lifetime_pnl, 50_000) / 50_000
-    sample_component = min(sample, 20) / 20
-    return round(min(100, max(0, (win_rate or 0) * 50 + pnl_component * 30 + sample_component * 20)))
+    sold = pnl.get("tokens_sold") or 0
+    matched = metrics.get("trades") or 0
+    return {
+        "win_rate": pnl.get("win_rate_tokens") if sold else metrics.get("win_rate"),
+        "sample_size": sold or matched,
+        "sample_kind": "tokens sold" if sold else "matched lots",
+        "realized_pnl_usd": pnl.get("lifetime_realized_pnl_usd") if pnl.get("available") or "lifetime_realized_pnl_usd" in pnl else metrics.get("realized_pnl_usd") if matched else None,
+    }
+
+
+def proven_trader(metrics: dict, pnl: dict) -> bool:
+    evidence = score_evidence(metrics, pnl)
+    concentration = pnl.get("profit_concentration")
+    # Sold-token count avoids treating many fills of one lucky exit as a track record.
+    return ((pnl.get("tokens_sold") or 0) >= 8
+            and (evidence["win_rate"] or 0) >= 0.55
+            and (evidence["realized_pnl_usd"] or 0) > 0
+            and concentration is not None and concentration < 0.75)
 
 
 # ---- trading style + tags ----
@@ -413,7 +438,7 @@ def primary_network(pnl_attrs: dict | None, fallback: str) -> str:
 # ---- Token X-ray: labels for a token's top holders/traders, composition, verdict ----
 
 LABEL_RULES = {
-    "proven_trader": "5+ closed trades with a 60%+ win rate and positive realized PnL",
+    "proven_trader": "8+ sold tokens, 55%+ win rate, positive realized PnL, and under 75% profit concentration",
     "whale": "position or lifetime PnL above $100k, or 2%+ of supply",
     "bot_like": "1,500+ trades in one token, or 50+ trades a day",
     "flipper": "trades often, in and out fast",
@@ -475,7 +500,7 @@ def xray_label(t: dict, pnl: dict | None = None) -> str:
         return "bot_like"
     if "holder" in (t.get("role") or "") and not (t.get("buy_count") or 0) and (t.get("supply_pct") or 0) >= 0.5:
         return "insider_like"
-    if (pnl.get("tokens_sold") or 0) >= 5 and (pnl.get("win_rate_tokens") or 0) >= 0.6 and (pnl.get("lifetime_realized_pnl_usd") or 0) > 0:
+    if proven_trader({}, pnl):
         return "proven_trader"
     big = max(t.get("value_usd") or 0, abs(pnl.get("lifetime_realized_pnl_usd") or 0), (t.get("realized_pnl_usd") or 0))
     if big >= 100_000 or (t.get("supply_pct") or 0) >= 2:

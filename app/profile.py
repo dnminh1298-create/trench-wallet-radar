@@ -14,7 +14,7 @@ from core import config as core_config
 from core import wallets as w
 from core.client import CoinGeckoClient, CoinGeckoError, PlanRestrictedError
 
-from . import scoring, tokens
+from . import scoring, tokens, rotation
 
 CACHE_TTL_S = 30 * 60
 TRADES_PER_PAGE = 200
@@ -81,16 +81,19 @@ def _summary(address: str, chain: str, raw: dict, budget_usd: float) -> dict:
     matched = scored.get("match_metrics") or {}
     portfolio = scored.get("portfolio") or {}
     activity = scored.get("activity") or {}
+    realized = scored.get("realized_pnl_usd")
     return {
         "address": address,
         "chain": chain,
         "status": raw["status"],
-        "realized_pnl_usd": matched.get("realized_pnl_usd", pnl.get("lifetime_realized_pnl_usd")),
+        "rotation": rotation.recent_rotation(chain, raw["trades"], raw["pnl"], raw["balances"]),
+        "rotation_window": rotation.WINDOW_NOTE,
+        "realized_pnl_usd": realized,
         "unrealized_pnl_usd": pnl.get("lifetime_unrealized_pnl_usd"),
         "total_pnl_usd": (
             None
             if pnl.get("pnl_reliable") is False
-            else round((matched.get("realized_pnl_usd") or pnl.get("lifetime_realized_pnl_usd") or 0) + (pnl.get("lifetime_unrealized_pnl_usd") or 0), 2)
+            else round((realized or 0) + (pnl.get("lifetime_unrealized_pnl_usd") or 0), 2)
         ),
         "pnl_reliable": pnl.get("pnl_reliable", True),
         "win_rate": matched.get("win_rate") if matched.get("trades") else pnl.get("win_rate_tokens"),

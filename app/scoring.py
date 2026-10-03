@@ -1,8 +1,8 @@
 """Deterministic, explainable wallet scoring shared by the Radar, the Wallet profile and the backtest.
 
 Every number here comes from core.wallets (FIFO-matched trades + the wallet's own lifetime PnL).
-No black box: a skill score is win rate, lifetime realized PnL, and sample size, weighted and
-capped so one huge trade can't dominate. Change the weights in core.wallets.skill_score().
+Trench Score weights win rate, realized PnL, sample size, and profit consistency.
+The legacy skill_score name remains for compatibility with the starter's other consumers.
 """
 from core import wallets as w
 
@@ -34,6 +34,8 @@ def profile_wallet(
         "label": label,
         "label_rule": LABEL_DESCRIPTIONS.get(label, ""),
         "skill_score": skill_score(match_metrics, pnl_feat),
+        "trench_score": skill_score(match_metrics, pnl_feat),
+        **w.score_evidence(match_metrics, pnl_feat),
         "copyability": copy_score,
         "copyable": w.is_copyable(copy_score) and label not in ("bot_like", "protocol"),
         "style": w.trading_style(match_metrics, activity),
@@ -58,7 +60,7 @@ def profile_wallet(
 
 
 LABEL_DESCRIPTIONS = {
-    "proven_trader": "Wins more than it loses, with a real sample of trades behind it.",
+    "proven_trader": w.LABEL_RULES["proven_trader"],
     "one_hit": "Only one closed trade so far, not enough to judge yet.",
     "whale": "Large lifetime PnL, but its trade sizes may be too big to copy at a small budget.",
     "bot_like": "Trades far more often than a human would; likely automated.",

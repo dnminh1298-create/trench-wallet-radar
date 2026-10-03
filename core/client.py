@@ -250,9 +250,9 @@ class CoinGeckoClient:
 
     # ---- price history ----
 
-    async def pool_ohlcv(self, network: str, address: str, timeframe: str, aggregate: int = 1, limit: int = 1000, before_timestamp: int | None = None) -> list:
+    async def pool_ohlcv(self, network: str, address: str, timeframe: str, aggregate: int = 1, limit: int = 1000, before_timestamp: int | None = None, token: str = "base") -> list:
         """One page of OHLCV candles for a pool."""
-        params = {"aggregate": aggregate, "limit": limit, "currency": "usd", "token": "base"}
+        params = {"aggregate": aggregate, "limit": limit, "currency": "usd", "token": token}
         if before_timestamp:
             params["before_timestamp"] = before_timestamp
         d = await self.get(f"/onchain/networks/{network}/pools/{address}/ohlcv/{timeframe}", params)

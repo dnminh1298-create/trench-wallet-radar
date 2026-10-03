@@ -9,6 +9,9 @@ _NO_PLAN = {"", "demo", "free"}
 async def probe_capabilities(client: CoinGeckoClient) -> dict:
     """Calls GET /key once and returns {paid, analyst, websocket, upgrade_url}; a Demo key gets all False."""
     caps = {"paid": False, "analyst": False, "websocket": False, "upgrade_url": config.PRICING_URL}
+    if not client._client.headers.get(config.KEY_HEADER):
+        client.analyst = False
+        return {**caps, "missing_key": True}
     try:
         info = await client.key_usage()
     except CoinGeckoError:
